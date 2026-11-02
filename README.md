@@ -31,14 +31,303 @@ Step 7: Save and run the application.
 ```
 /*
 Program to print the client/server services using AIDL”.
-Developed by:
-Registeration Number :
+Developed by: Sharukesh R
+Registeration Number :212223220106
 */
 ```
+## MainActivity.java
+```
+package com.example.aidlclient;
+
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.os.RemoteException;
+import android.widget.Button;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.aidlserver.IColorService;
+
+public class MainActivity extends AppCompatActivity {
+
+    private IColorService colorService;
+    private boolean isBound = false;
+    private Button btnChangeColor;
+
+    private final ServiceConnection connection =
+            new ServiceConnection() {
+
+                @Override
+                public void onServiceConnected(
+                        ComponentName name, IBinder service) {
+
+                    colorService =
+                            IColorService.Stub.asInterface(service);
+
+                    isBound = true;
+
+                    Toast.makeText(
+                            MainActivity.this,
+                            R.string.connected_to_server,
+                            Toast.LENGTH_SHORT
+                    ).show();
+                }
+
+                @Override
+                public void onServiceDisconnected(ComponentName name) {
+                    isBound = false;
+                    colorService = null;
+                }
+            };
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        btnChangeColor = findViewById(R.id.btnChangeColor);
+
+        btnChangeColor.setOnClickListener(v -> {
+            if (isBound && colorService != null) {
+                try {
+                    int randomColor =
+                            colorService.getRandomColor();
+
+                    btnChangeColor.setBackgroundColor(randomColor);
+
+                } catch (RemoteException e) {
+                    Toast.makeText(
+                            MainActivity.this,
+                            R.string.error_getting_colour,
+                            Toast.LENGTH_SHORT
+                    ).show();
+                }
+            } else {
+                Toast.makeText(
+                        MainActivity.this,
+                        R.string.server_not_connected,
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+        });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        Intent intent = new Intent(
+                "com.example.aidlserver.IColorService"
+        );
+
+        intent.setPackage("com.example.aidlserver");
+
+        bindService(
+                intent,
+                connection,
+                Context.BIND_AUTO_CREATE
+        );
+    }
+
+    @Override
+    protected void onStop() {
+        if (isBound) {
+            unbindService(connection);
+            isBound = false;
+            colorService = null;
+        }
+
+        super.onStop();
+    }
+}
+```
+## activity_main.xml
+```
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/btnChangeColor"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:text="@string/tap_me"
+        android:textSize="24sp" />
+
+</LinearLayout>
+```
+## AndroidManifest.xml
+```
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <queries>
+        <package android:name="com.example.aidlserver" />
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Aidlclient">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
+```
+## lColorService.aidl
+```
+
+package com.example.aidlserver;
+
+interface IColorService {
+    int getRandomColor();
+}
+```
+## aidlserver app
+
+## MainActivity.java
+```
+package com.example.aidlserver;
+
+import android.os.Bundle;
+
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+public class MainActivity extends AppCompatActivity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_main);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+    }
+}
+
+```
+## ColorService.java
+```
+package com.example.aidlserver;
+
+import android.app.Service;
+import android.content.Intent;
+import android.graphics.Color;
+import android.os.IBinder;
+import android.os.RemoteException;
+
+import java.util.Random;
+
+public class ColorService extends Service {
+
+    private final IColorService.Stub binder =
+            new IColorService.Stub() {
+                @Override
+                public int getRandomColor() throws RemoteException {
+                    Random random = new Random();
+
+                    int red = random.nextInt(256);
+                    int green = random.nextInt(256);
+                    int blue = random.nextInt(256);
+
+                    return Color.rgb(red, green, blue);
+                }
+            };
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return binder;
+    }
+}
+```
+## Android Manifest.xml
+```
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Aidlserver">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".ColorService"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action
+                    android:name="com.example.aidlserver.IColorService" />
+            </intent-filter>
+        </service>
+
+    </application>
+
+</manifest>
+
+```
+## lColorService.aidl
+```
+
+package com.example.aidlserver;
+
+interface IColorService {
+    int getRandomColor();
+}
+
+```
+
 
 ## OUTPUT
 
+<img width="1912" height="1073" alt="image" src="https://github.com/user-attachments/assets/6d36c58c-1ec3-44d7-8ab5-8e969480d427" />
 
+<img width="1890" height="1077" alt="image" src="https://github.com/user-attachments/assets/ecdb8e64-4dee-48b4-818f-f5abd3e5184b" />
 
 
 ## RESULT
